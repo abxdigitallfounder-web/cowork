@@ -16,3 +16,15 @@
 @media(max-width:520px){.bottom-actions{align-items:stretch;flex-direction:column}.bottom-actions .primary{width:100%}.decision-buttons{width:100%}.decision-buttons>*{flex:1}.role-stats{grid-template-columns:repeat(2,1fr)}}
 .review-box{border:1px solid #dde9e0;background:#f4f9f5;border-radius:12px;padding:18px;margin-bottom:22px}.review-top{margin-bottom:14px}.review-top .eyebrow{display:block}.review-top h3{font-size:16px;letter-spacing:-.35px;margin:6px 0 0}.review-box .brief-summary{background:#fff}.review-assign{margin-top:14px;max-width:340px}.review-box textarea{width:100%;min-height:80px;border:1px solid #dfe8ec;border-radius:7px;padding:10px;margin:12px 0 0;background:#fff;font-size:13px;line-height:1.5;resize:vertical;outline:none}.review-box textarea:focus{border-color:#8caeba;box-shadow:0 0 0 3px #bed7d84f}.review-box textarea::placeholder{color:#abb5be}.review-actions{display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end;margin:12px 0 8px}.review-box .subtle{display:block;text-align:right;white-space:normal}.creative-card.awaiting{border-color:#c6dcc8;background:#fbfdfb}.review-flag{display:inline-flex;align-items:center;gap:5px;margin-top:9px;font-size:10px;font-weight:800;color:#3f7a4e;background:#e6f4e7;border-radius:5px;padding:4px 7px}
 @media(max-width:520px){.review-actions{flex-direction:column-reverse}.review-actions>*{width:100%}.review-box .subtle{text-align:left}}
+.auth-shell{min-height:100vh;display:grid;place-items:center;padding:28px 16px;background:#172132}
+.auth-card{width:100%;max-width:404px;background:#fff;border-radius:15px;padding:30px;display:grid;gap:14px;box-shadow:0 18px 44px #0b121d3d}
+.auth-brand{padding:0 0 6px;color:#172132}
+.auth-card h1{font-size:23px;letter-spacing:-.7px;margin:0;font-weight:780}
+.auth-lead{margin:-6px 0 4px;color:#7b8794;font-size:13px;line-height:1.5}
+.auth-card .field input{height:42px;font-size:13px}
+.auth-error{background:#fff0e8;color:#a14d2f;border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.45}
+.auth-submit{width:100%;height:44px;margin-top:4px}
+.auth-switch{text-align:center;font-size:12px;color:#7b8794}
+.auth-switch a{color:#2c5670;font-weight:750;text-decoration:underline;text-underline-offset:3px}
+.signout{border:0;background:transparent;color:#91a0b0;font-size:11px;font-weight:700;padding:4px 0;text-align:left}
+.signout:hover{color:#eaff91;text-decoration:underline}

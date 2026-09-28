@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { database, type Database } from '@/db';
+import { auth } from '@/lib/auth/server';
 export const dynamic = 'force-dynamic';
 
 type Person = { id:string; email:string; name:string; role:string };
@@ -10,15 +11,15 @@ const fields = [...copyFields,...editorFields,...mediaFields,'reviewFeedback'];
 const columns:Record<string,string> = Object.fromEntries(fields.map(k=>[k,k.replace(/[A-Z]/g,c=>'_'+c.toLowerCase())]));
 const roles=['copy','editor','media','admin'];
 const toError=(error:string,status=400)=>NextResponse.json({error},{status});
-function identity(req:NextRequest){
- const id=req.headers.get('oai-authenticated-user-id');const email=req.headers.get('oai-authenticated-user-email')?.toLowerCase();
- if(!id||!email){if(process.env.NODE_ENV==='development')return{id:'dev-user',email:'preview@local',name:'Você'};return null}
- let name=req.headers.get('oai-authenticated-user-full-name');
- if(name&&req.headers.get('oai-authenticated-user-full-name-encoding')==='percent-encoded-utf-8'){try{name=decodeURIComponent(name)}catch{name=null}}
- return{id,email,name:name||email.split('@')[0]};
+async function identity(){
+ const {data:session}=await auth.getSession();
+ const user=session?.user;
+ if(!user?.email)return null;
+ const email=user.email.toLowerCase();
+ return{id:user.id,email,name:user.name||email.split('@')[0]};
 }
-async function person(req:NextRequest,db:Database):Promise<Person|null>{
- const u=identity(req);if(!u)return null;
+async function person(db:Database):Promise<Person|null>{
+ const u=await identity();if(!u)return null;
  const count=await db.first<{n:number}>('SELECT COUNT(*) AS n FROM team_members');
  if(!count?.n)await db.run('INSERT INTO team_members (email,name,role,created_at) VALUES ($1,$2,$3,$4) ON CONFLICT (email) DO NOTHING',[u.email,u.name,'admin',Date.now()]);
  const member=await db.first<{role:string}>('SELECT role FROM team_members WHERE email=$1',[u.email]);
@@ -27,8 +28,8 @@ async function person(req:NextRequest,db:Database):Promise<Person|null>{
 }
 async function log(db:Database,id:string,actor:string,message:string){await db.run('INSERT INTO activity (id,creative_id,actor,text,created_at) VALUES ($1,$2,$3,$4,$5)',[crypto.randomUUID(),id,actor,message,Date.now()])}
 function canWork(u:Person,row:any,role:string){return u.role==='admin'||(u.role===role&&row[role==='media'?'media_assignee':role+'_assignee']===u.email)}
-export async function GET(req:NextRequest){
- try{const db=database();const u=await person(req,db);if(!u)return toError('Entre com sua conta para acessar o workspace.',401);if(u.role==='pending')return toError('Sua conta ainda não foi adicionada à equipe. Peça acesso ao administrador.',403);
+export async function GET(){
+ try{const db=database();const u=await person(db);if(!u)return toError('Entre com sua conta para acessar o workspace.',401);if(u.role==='pending')return toError('Sua conta ainda não foi adicionada à equipe. Peça acesso ao administrador.',403);
  const [c,m,a,t]=await Promise.all([
  db.all('SELECT * FROM creatives ORDER BY updated_at DESC LIMIT 500'),
  db.all('SELECT * FROM comments ORDER BY created_at DESC LIMIT 1200'),
@@ -39,7 +40,7 @@ export async function GET(req:NextRequest){
 }
 export async function POST(req:NextRequest){
  let body:any;try{body=await req.json()}catch{return toError('Dados inválidos.')}
- try{const db=database();const u=await person(req,db);if(!u)return toError('Entre com sua conta para continuar.',401);if(u.role==='pending')return toError('Conta ainda sem acesso à equipe.',403);
+ try{const db=database();const u=await person(db);if(!u)return toError('Entre com sua conta para continuar.',401);if(u.role==='pending')return toError('Conta ainda sem acesso à equipe.',403);
  const now=Date.now();
  if(body.action==='member'){
   if(u.role!=='admin')return toError('Apenas o administrador gerencia funções.',403);

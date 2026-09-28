@@ -1,5 +1,5 @@
 import vinext from "vinext";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
 import { readExecutionProfile } from "./scripts/execution-profile.mjs";
 import { sites } from "./build/sites-vite-plugin";
@@ -35,10 +35,11 @@ const localBindingConfig = {
     : [],
 };
 
-export default defineConfig(async ({ mode }) => {
-  // A conexão do Neon nunca fica no código: no preview local ela vem de `.env.local`
-  // e vira uma var do Worker; em produção vem das variáveis de ambiente da hospedagem.
-  const localEnv = loadEnv(mode, process.cwd(), "");
+// As variáveis do Neon (banco e login) nunca ficam no código: no preview local o
+// plugin da Cloudflare já carrega `.env.local` como segredos do Worker, e em produção
+// elas vêm das variáveis de ambiente da hospedagem. Não as declare também em `vars`:
+// a mesma chave definida nos dois lugares derruba o runtime.
+export default defineConfig(async () => {
   // Use Miniflare's local Request.cf placeholder unless fetching is requested.
   process.env.CLOUDFLARE_CF_FETCH_ENABLED ??= "false";
   process.env.WRANGLER_SEND_METRICS ??= "false";
@@ -64,10 +65,7 @@ export default defineConfig(async ({ mode }) => {
       cloudflare({
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
-        config: {
-          ...localBindingConfig,
-          vars: localEnv.DATABASE_URL ? { DATABASE_URL: localEnv.DATABASE_URL } : {},
-        },
+        config: localBindingConfig,
       }),
     ],
   };

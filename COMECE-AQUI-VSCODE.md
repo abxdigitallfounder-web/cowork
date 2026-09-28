@@ -2,15 +2,13 @@
 
 Esta pasta é o código-fonte do site. Não inclui senhas, dependências instaladas ou dados reais.
 
-O banco de dados é **Neon (Postgres)**. A conexão vem sempre da variável de ambiente `DATABASE_URL` — nunca do código.
+O banco de dados é **Neon (Postgres)** e o login é **Neon Auth**. Conexão e segredos vêm sempre de variáveis de ambiente — nunca do código.
 
 ## 1. Preparar
 
 Instale o VS Code e o Node.js 22.13 ou superior. Extraia este ZIP para uma pasta, por exemplo `Documentos\Cowork-Criativo`. Abra essa pasta no VS Code em **Arquivo > Abrir Pasta** e abra **Terminal > Novo Terminal** (PowerShell).
 
-## 2. Instalar e conectar no banco
-
-Crie um projeto no [Neon](https://neon.tech), copie a connection string e rode:
+## 2. Instalar e conectar
 
 ```powershell
 node --version
@@ -18,7 +16,13 @@ npx --yes pnpm@10 install --frozen-lockfile
 Copy-Item .env.example .env.local
 ```
 
-Abra `.env.local` e cole a sua connection string em `DATABASE_URL`. Depois:
+Abra `.env.local` e preencha as três variáveis, seguindo as instruções do próprio arquivo:
+
+- `DATABASE_URL` — Neon Console > seu projeto > **Connect**
+- `NEON_AUTH_BASE_URL` — Neon Console > seu projeto > **Auth** > Configuration > Auth URL
+- `NEON_AUTH_COOKIE_SECRET` — você mesmo gera, com o comando que está no `.env.example`
+
+Depois:
 
 ```powershell
 npm run db:migrate
@@ -27,7 +31,15 @@ npm run dev
 
 Abra o endereço mostrado no terminal (normalmente `http://localhost:5173`).
 
-`.env.local` está no `.gitignore`: a senha do banco não entra no repositório nem no ZIP. Rode `npm run db:migrate` só quando houver migração nova.
+`.env.local` está no `.gitignore`: nada dele entra no repositório nem no ZIP. Rode `npm run db:migrate` só quando houver migração nova.
+
+## 2.1. Entrar no workspace
+
+Não existe mais usuário de desenvolvimento: o preview local usa o mesmo login do site publicado. Na primeira vez, crie sua conta em `/criar-conta`; depois é só `/entrar`.
+
+**A primeira pessoa que entra vira administradora automaticamente**, e é ela quem cadastra as demais na aba **Equipe**, definindo a função de cada uma (copy, editor ou media buyer). Quem cria conta antes de ser cadastrado vê o aviso de que precisa pedir acesso — isso é o comportamento esperado.
+
+Por isso, garanta que a **primeira conta criada seja a sua**: se outra pessoa (ou um teste) ocupar essa vaga, ninguém mais consegue liberar acessos.
 
 **Atenção:** diferente do banco local antigo, o Neon é um banco só. Se você apontar o `.env.local` para o mesmo banco que o site usa em produção, o que você criar testando aqui aparece para a equipe. Para testar à vontade, crie um segundo projeto (ou um branch) no Neon e use essa string no `.env.local`.
 
@@ -49,6 +61,7 @@ Nunca edite nem apague um arquivo de migração já aplicado — toda mudança e
 - `app/api/workspace/route.ts` — regras, permissões e dados da operação.
 - `db/schema.ts` e `drizzle/` — banco de dados e migrações.
 - `db/index.ts` — conexão com o Neon.
+- `lib/auth/` e `app/entrar`, `app/criar-conta` — login.
 - `public/favicon.svg` — ícone.
 
 ## Pastas que você pode ignorar
@@ -58,4 +71,4 @@ Nunca edite nem apague um arquivo de migração já aplicado — toda mudança e
 
 ## Publicação
 
-Editar esta cópia e rodar `npm run dev` não altera nenhum site publicado. Ao publicar (GitHub → Vercel), cadastre `DATABASE_URL` em **Settings > Environment Variables** no projeto da Vercel. Não envie `node_modules`, `dist`, `.wrangler`, `.sites-runtime` ou `.env.local`.
+Editar esta cópia e rodar `npm run dev` não altera nenhum site publicado. Ao publicar (GitHub → Vercel), cadastre as **três** variáveis do `.env.local` em **Settings > Environment Variables** no projeto da Vercel. Não envie `node_modules`, `dist`, `.wrangler`, `.sites-runtime` ou `.env.local`.
