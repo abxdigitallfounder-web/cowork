@@ -29,7 +29,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Abra o endereço mostrado no terminal (normalmente `http://localhost:5173`).
+Abra o endereço mostrado no terminal (normalmente `http://localhost:3000`).
 
 `.env.local` está no `.gitignore`: nada dele entra no repositório nem no ZIP. Rode `npm run db:migrate` só quando houver migração nova.
 
@@ -66,9 +66,8 @@ Nunca edite nem apague um arquivo de migração já aplicado — toda mudança e
 
 ## Pastas que você pode ignorar
 
-- `drizzle-d1-legacy/` — migrações do banco antigo (Cloudflare D1), guardadas só por histórico.
-- `examples/`, `build/`, `scripts/` — apoio do template original.
+- `drizzle-d1-legacy/` — migrações do banco antigo (Cloudflare D1), guardadas só por histórico. Não são usadas.
 
 ## Publicação
 
-Editar esta cópia e rodar `npm run dev` não altera nenhum site publicado. Ao publicar (GitHub → Vercel), cadastre as **três** variáveis do `.env.local` em **Settings > Environment Variables** no projeto da Vercel. Não envie `node_modules`, `dist`, `.wrangler`, `.sites-runtime` ou `.env.local`.
+Editar esta cópia e rodar `npm run dev` não altera nenhum site publicado. Ao publicar (GitHub → Vercel), cadastre as **três** variáveis do `.env.local` em **Settings > Environment Variables** no projeto da Vercel. Não envie `node_modules`, `.next` ou `.env.local`.
