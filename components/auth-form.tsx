@@ -30,7 +30,7 @@ export function AuthForm({ mode }: { mode: 'entrar' | 'criar' }) {
 
   return <div className="auth-shell">
     <form className="auth-card" onSubmit={submit}>
-      <div className="brand auth-brand"><span className="brand-mark">C<span>•</span></span><div><strong>Cowork</strong><small>CREATIVE OPS</small></div></div>
+      <div className="brand auth-brand"><span className="brand-mark">C<span>•</span></span><div className="brand-text"><strong>Cowork</strong><small>CREATIVE OPS</small></div></div>
       <h1>{criando ? 'Criar sua conta' : 'Entrar no workspace'}</h1>
       <p className="auth-lead">{criando
         ? 'Depois de criar a conta, um administrador libera sua função na equipe.'
