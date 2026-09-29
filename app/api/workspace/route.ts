@@ -4,12 +4,16 @@ import { auth } from '@/lib/auth/server';
 export const dynamic = 'force-dynamic';
 
 type Person = { id:string; email:string; name:string; role:string };
+type CreativeOwners = { status:string; copy_assignee:string; editor_assignee:string; media_assignee:string };
 const copyFields = ['product','title','parent','kind','hypothesis','offer','angle','message','hook','hookCopy','hookVisual','concept','script','editorNotes','variable','keep','change','copyAssignee','editorAssignee','mediaAssignee','dueAt'];
 const editorFields = ['version','assetUrl','editorResponse','editorChecklist'];
 const mediaFields = ['spend','cpa','roas','ctr','cvr','result','learning','nextAction'];
 const fields = [...copyFields,...editorFields,...mediaFields,'reviewFeedback'];
 const columns:Record<string,string> = Object.fromEntries(fields.map(k=>[k,k.replace(/[A-Z]/g,c=>'_'+c.toLowerCase())]));
 const roles=['copy','editor','media','admin'];
+// A Vercel corta requisições acima de ~4,5 MB e o base64 cresce um terço: 3 MB de PDF cabe.
+const MAX_PDF_BYTES=3*1024*1024;
+const MAX_PDF_PER_CREATIVE=3;
 const toError=(error:string,status=400)=>NextResponse.json({error},{status});
 async function identity(){
  const {data:session}=await auth.getSession();
@@ -35,7 +39,8 @@ export async function GET(){
  db.all('SELECT * FROM comments ORDER BY created_at DESC LIMIT 1200'),
  db.all('SELECT * FROM activity ORDER BY created_at DESC LIMIT 400'),
  db.all('SELECT email,name,role FROM team_members ORDER BY name,email')]);
- return NextResponse.json({user:u,creatives:c,comments:m,activity:a,team:t},{headers:{'Cache-Control':'no-store'}})
+ const files=await db.all('SELECT id,creative_id,name,size,uploaded_by,created_at FROM brief_files ORDER BY created_at DESC LIMIT 500');
+ return NextResponse.json({user:u,creatives:c,comments:m,activity:a,team:t,briefFiles:files},{headers:{'Cache-Control':'no-store'}})
  }catch(e){console.error(e);return toError('Workspace indisponível no momento. Tente novamente.',503)}
 }
 export async function POST(req:NextRequest){
@@ -101,6 +106,49 @@ export async function POST(req:NextRequest){
   const feedback=pair==='revisao>producao'?String(body.feedback).trim().slice(0,3000):pair==='producao>revisao'?'':row.review_feedback;const version=Math.max(now,row.updated_at+1);
   const result=await db.run('UPDATE creatives SET status=$1,review_feedback=$2,updated_at=$3 WHERE id=$4 AND updated_at=$5',[next,feedback,version,id,row.updated_at]);if(!result.changes)return toError('O CR mudou. Atualize e tente novamente.',409);
   await log(db,id,u.name,`${row.status} → ${next}${pair==='revisao>producao'?': '+feedback:''}`);return NextResponse.json({ok:true});
+ }
+ if(body.action==='delete'){
+  const id=String(body.id||'');if(!/^CR\d+$/.test(id))return toError('Criativo inválido.');
+  const row=await db.first<{owner_email:string,status:string}>('SELECT owner_email,status FROM creatives WHERE id=$1',[id]);if(!row)return toError('Criativo não encontrado.',404);
+  // O autor pode desistir da ideia enquanto ela ainda é só um brief. Depois que a
+  // produção começa, o histórico é compartilhado e só o administrador apaga.
+  const owns=row.owner_email===u.email&&row.status==='brief';
+  if(u.role!=='admin'&&!owns)return toError('Só o administrador pode excluir um CR que já saiu do brief.',403);
+  await db.run('DELETE FROM brief_files WHERE creative_id=$1',[id]);
+  await db.run('DELETE FROM comments WHERE creative_id=$1',[id]);
+  await db.run('DELETE FROM activity WHERE creative_id=$1',[id]);
+  const result=await db.run('DELETE FROM creatives WHERE id=$1',[id]);
+  if(!result.changes)return toError('Criativo não encontrado.',404);
+  return NextResponse.json({ok:true});
+ }
+ if(body.action==='brief-file'){
+  const id=String(body.creativeId||'');if(!/^CR\d+$/.test(id))return toError('Criativo inválido.');
+  const row=await db.first<CreativeOwners>('SELECT status,copy_assignee,editor_assignee,media_assignee FROM creatives WHERE id=$1',[id]);if(!row)return toError('Criativo não encontrado.',404);
+  if(u.role!=='admin'&&!(row.status==='brief'&&canWork(u,row,'copy')))return toError('O PDF do briefing é anexado pelo Copy enquanto o CR está em brief.',403);
+  const name=String(body.name||'').trim().slice(0,160),data=String(body.data||'');
+  if(!name.toLowerCase().endsWith('.pdf'))return toError('Envie um arquivo PDF.');
+  if(!/^[A-Za-z0-9+/]+={0,2}$/.test(data))return toError('Arquivo inválido.');
+  const size=Math.floor(data.length*3/4)-(data.endsWith('==')?2:data.endsWith('=')?1:0);
+  if(!size)return toError('Arquivo vazio.');
+  if(size>MAX_PDF_BYTES)return toError('O PDF precisa ter até 3 MB.');
+  // Confere a assinatura do PDF (%PDF-) em vez de confiar na extensão ou no MIME.
+  if(Buffer.from(data.slice(0,8),'base64').subarray(0,5).toString('latin1')!=='%PDF-')return toError('O arquivo não é um PDF válido.');
+  const count=await db.first<{n:number}>('SELECT COUNT(*) AS n FROM brief_files WHERE creative_id=$1',[id]);
+  if((count?.n||0)>=MAX_PDF_PER_CREATIVE)return toError(`Cada CR aceita até ${MAX_PDF_PER_CREATIVE} PDFs de briefing.`);
+  const fileId=crypto.randomUUID();
+  await db.run('INSERT INTO brief_files (id,creative_id,name,size,data,uploaded_by,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7)',[fileId,id,name,size,data,u.email,now]);
+  await log(db,id,u.name,'anexou o PDF do briefing');
+  return NextResponse.json({id:fileId,name,size,createdAt:now});
+ }
+ if(body.action==='brief-file-delete'){
+  const fileId=String(body.fileId||'');
+  const file=await db.first<{creative_id:string}>('SELECT creative_id FROM brief_files WHERE id=$1',[fileId]);
+  if(!file)return toError('Arquivo não encontrado.',404);
+  const row=await db.first<CreativeOwners>('SELECT status,copy_assignee,editor_assignee,media_assignee FROM creatives WHERE id=$1',[file.creative_id]);if(!row)return toError('Criativo não encontrado.',404);
+  if(u.role!=='admin'&&!(row.status==='brief'&&canWork(u,row,'copy')))return toError('O PDF do briefing é removido pelo Copy enquanto o CR está em brief.',403);
+  await db.run('DELETE FROM brief_files WHERE id=$1',[fileId]);
+  await log(db,file.creative_id,u.name,'removeu o PDF do briefing');
+  return NextResponse.json({ok:true});
  }
  return toError('Ação inválida.');
  }catch(e){console.error(e);return toError('Não foi possível concluir a operação. Seus dados permanecem na tela.',503)}

@@ -58,3 +58,15 @@ export const teamMembers = pgTable('team_members', {
   role: text('role').notNull(),
   createdAt: epochMs('created_at').notNull(),
 });
+
+// O PDF do briefing fica em uma tabela separada, em base64, para que a leitura do
+// workspace continue trazendo só os metadados do arquivo e nunca o conteúdo.
+export const briefFiles = pgTable('brief_files', {
+  id: text('id').primaryKey(),
+  creativeId: text('creative_id').notNull(),
+  name: text('name').notNull(),
+  size: integer('size').notNull(),
+  data: text('data').notNull(),
+  uploadedBy: text('uploaded_by').notNull(),
+  createdAt: epochMs('created_at').notNull(),
+});

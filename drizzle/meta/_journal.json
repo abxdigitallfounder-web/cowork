@@ -8,6 +8,13 @@
       "when": 1790624359110,
       "tag": "0000_sleepy_moondragon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790694439823,
+      "tag": "0001_bumpy_celestials",
+      "breakpoints": true
     }
   ]
 }
